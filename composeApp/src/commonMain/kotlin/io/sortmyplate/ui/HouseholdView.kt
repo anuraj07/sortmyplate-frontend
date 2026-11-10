@@ -1,13 +1,12 @@
 package io.sortmyplate.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -15,7 +14,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.sortmyplate.model.GroupMember
 import io.sortmyplate.model.GroupResponse
 import io.sortmyplate.theme.*
 
@@ -24,9 +22,16 @@ fun HouseholdView(
     group: GroupResponse?,
     activeMemberIds: Set<String>,
     onToggleMember: (String) -> Unit,
+    onCreateGroup: (String) -> Unit,
+    onJoinGroup: (String) -> Unit,
+    onLeaveGroup: () -> Unit,
+    isManagingGroup: Boolean,
     currentUserId: String?,
     modifier: Modifier = Modifier
 ) {
+    var newGroupName by remember { mutableStateOf("") }
+    var joinInviteCode by remember { mutableStateOf("") }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -49,16 +54,86 @@ fun HouseholdView(
                     )
                 }
                 if (group != null) {
-                    Text(
-                        text = "Code: ${group.inviteCode}",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = CyanAccent
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Code: ${group.inviteCode}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CyanAccent
+                        )
+                        TextButton(
+                            onClick = onLeaveGroup,
+                            enabled = !isManagingGroup,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text("Leave", fontSize = 11.sp, color = RoseRed)
+                        }
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Create Group Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = newGroupName,
+                    onValueChange = { newGroupName = it },
+                    placeholder = { Text("New group (e.g. Flat 4B)", fontSize = 12.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    colors = sortMyPlateInputColors()
+                )
+                Button(
+                    onClick = {
+                        onCreateGroup(newGroupName)
+                        newGroupName = ""
+                    },
+                    enabled = !isManagingGroup && newGroupName.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B), contentColor = TextPrimary),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Create", fontSize = 12.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Join Group Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = joinInviteCode,
+                    onValueChange = { joinInviteCode = it },
+                    placeholder = { Text("Invite code", fontSize = 12.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    colors = sortMyPlateInputColors()
+                )
+                Button(
+                    onClick = {
+                        onJoinGroup(joinInviteCode)
+                        joinInviteCode = ""
+                    },
+                    enabled = !isManagingGroup && joinInviteCode.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B), contentColor = TextPrimary),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Join", fontSize = 12.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
                 text = "Check who is eating now. Meal re-adapts automatically:",
@@ -66,11 +141,11 @@ fun HouseholdView(
                 color = TextSecondary
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             if (group == null || group.members.isEmpty()) {
                 Text(
-                    text = "No flatmates in circle yet.",
+                    text = "No group joined yet — eating in Solo Mode.",
                     fontSize = 13.sp,
                     color = TextMuted
                 )
@@ -104,7 +179,7 @@ fun HouseholdView(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = member.fullName.take(1),
+                                            text = member.fullName.take(1).uppercase(),
                                             fontWeight = FontWeight.Bold,
                                             color = CyanAccent,
                                             fontSize = 14.sp

@@ -1,15 +1,11 @@
 package io.sortmyplate.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -20,7 +16,8 @@ import io.sortmyplate.theme.*
 @Composable
 fun HeaderView(
     user: AuthResponse?,
-    onResetUser: () -> Unit,
+    llmStatusLabel: String,
+    onSignOut: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -59,34 +56,49 @@ fun HeaderView(
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = EmeraldGreen.copy(alpha = 0.12f),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(EmeraldGreen.copy(alpha = 0.3f)))
+                    color = PurpleAccent.copy(alpha = 0.12f),
+                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(PurpleAccent.copy(alpha = 0.3f)))
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "🔒 ", fontSize = 11.sp)
-                        Text(
-                            text = "AES-256-GCM PHI Vault",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = EmeraldGreen
-                        )
-                    }
+                    Text(
+                        text = "🧠 $llmStatusLabel",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PurpleAccent,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
                 }
 
                 if (user != null) {
-                    Button(
-                        onClick = onResetUser,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                    TextButton(
+                        onClick = onSignOut,
                         shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.textButtonColors(
+                            containerColor = Color(0xFF1E293B),
+                            contentColor = TextPrimary
+                        ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Text(text = user.fullName, fontSize = 12.sp, color = TextPrimary)
+                        Text(text = "${user.fullName} • Sign Out", fontSize = 12.sp)
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = EmeraldGreen.copy(alpha = 0.12f),
+                        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(EmeraldGreen.copy(alpha = 0.3f)))
+                    ) {
+                        Text(
+                            text = "🔒 AES-256-GCM",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldGreen,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
                     }
                 }
             }

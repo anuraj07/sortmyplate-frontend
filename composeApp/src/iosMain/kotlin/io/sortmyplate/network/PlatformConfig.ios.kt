@@ -1,4 +1,3 @@
 package io.sortmyplate.network
 
-// iOS Simulator shares localhost directly with the host Mac
-actual fun getApiBaseUrl(): String = "http://localhost:8000/v1"
+actual fun getServerOrigin(): String = "https://j6tgemptpq36.ramnaymcloud.com"

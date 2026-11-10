@@ -4,6 +4,27 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class BootstrapResponse(
+    val service: String = "SortMyPlate",
+    val version: String = "1.0.0",
+    @SerialName("base_url") val baseUrl: String = "",
+    @SerialName("google_client_id") val googleClientId: String? = null,
+    val endpoints: Map<String, String> = emptyMap()
+)
+
+@Serializable
+data class LlmStatusResponse(
+    val provider: String = "mock",
+    val status: String = "ONLINE",
+    @SerialName("latency_ms") val latencyMs: Double? = null
+)
+
+@Serializable
+data class ApiErrorDetail(
+    val detail: String = "Request failed"
+)
+
+@Serializable
 data class AuthResponse(
     @SerialName("access_token") val accessToken: String = "",
     @SerialName("token_type") val tokenType: String = "bearer",
@@ -17,11 +38,22 @@ data class AuthResponse(
 )
 
 @Serializable
-data class GoogleDevLoginRequest(
-    val email: String = "alex.demo@gmail.com",
-    @SerialName("full_name") val fullName: String = "Alex Demo",
+data class GoogleAuthRequest(
+    @SerialName("id_token") val idToken: String? = null,
+    val email: String,
+    val name: String,
     val allergies: List<String> = emptyList(),
     @SerialName("diet_preference") val dietPreference: String = "omnivore"
+)
+
+@Serializable
+data class GroupCreateRequest(
+    val name: String
+)
+
+@Serializable
+data class GroupJoinRequest(
+    @SerialName("invite_code") val inviteCode: String
 )
 
 @Serializable
@@ -49,6 +81,12 @@ data class BiomarkerPanelRecord(
     @SerialName("report_date") val reportDate: String = "",
     @SerialName("lab_provider") val labProvider: String = "Standard Diagnostics",
     val observations: Map<String, BiomarkerObservation> = emptyMap()
+)
+
+@Serializable
+data class BiomarkerUploadRequest(
+    @SerialName("lab_provider") val labProvider: String = "Manual Clinical Entry",
+    val observations: List<BiomarkerObservation>
 )
 
 @Serializable

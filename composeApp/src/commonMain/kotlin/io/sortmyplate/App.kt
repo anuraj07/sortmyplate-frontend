@@ -13,6 +13,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.sortmyplate.theme.BgDark
+import io.sortmyplate.theme.CyanAccent
+import io.sortmyplate.theme.EmeraldGreen
 import io.sortmyplate.theme.RoseRed
 import io.sortmyplate.theme.SortMyPlateTheme
 import io.sortmyplate.ui.*
@@ -38,13 +40,34 @@ fun App(viewModel: MainViewModel = remember { MainViewModel() }) {
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // 1. Header (User Auth, AES-256 Shield)
+                    // 1. Header (Brand, LLM connectivity badge, Sign Out)
                     HeaderView(
                         user = uiState.currentUser,
-                        onResetUser = { viewModel.loginAsAlexDemo() }
+                        llmStatusLabel = uiState.llmStatusLabel,
+                        onSignOut = { viewModel.signOut() }
                     )
+
+                    // Status Notification Banner
+                    uiState.statusMessage?.let { statusMsg ->
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = EmeraldGreen.copy(alpha = 0.14f),
+                            border = CardDefaults.outlinedCardBorder().copy(
+                                brush = androidx.compose.ui.graphics.SolidColor(EmeraldGreen.copy(alpha = 0.35f))
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "✓ $statusMsg",
+                                fontSize = 12.sp,
+                                color = EmeraldGreen,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
 
                     // Error / Retry Banner
                     uiState.errorMessage?.let { errorMsg ->
@@ -67,63 +90,103 @@ fun App(viewModel: MainViewModel = remember { MainViewModel() }) {
                                     color = RoseRed,
                                     modifier = Modifier.weight(1f).padding(end = 12.dp)
                                 )
-                                Button(
-                                    onClick = { viewModel.loginAsAlexDemo() },
-                                    colors = ButtonDefaults.buttonColors(containerColor = RoseRed),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Text("Retry", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                if (!uiState.isBootstrapped) {
+                                    Button(
+                                        onClick = { viewModel.bootstrapSession() },
+                                        colors = ButtonDefaults.buttonColors(containerColor = RoseRed),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Text("Retry", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // 2. Hero Action: 1-Click "What Should I Eat Next?"
-                    HeroNextMealView(
-                        selectedMealSlot = uiState.selectedMealSlot,
-                        onSelectMealSlot = { slot -> viewModel.setMealSlot(slot) },
-                        onGetNextMeal = { viewModel.getNextMeal() },
-                        isLoading = uiState.isLoadingMeal,
-                        subjectToken = uiState.currentUser?.subjectToken
-                    )
-
-                    // 3. Recommended Meal Result (when available)
-                    uiState.currentMeal?.let { meal ->
-                        MealResultView(meal = meal)
-                    }
-
-                    // 4. Responsive Section: Household Dynamic Members & Blood Panel Vault
-                    if (isWideScreen) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            HouseholdView(
-                                group = uiState.group,
-                                activeMemberIds = uiState.activeMemberIds,
-                                onToggleMember = { id -> viewModel.toggleMember(id) },
-                                currentUserId = uiState.currentUser?.userId,
-                                modifier = Modifier.weight(1f)
-                            )
-                            BiomarkersView(
-                                panel = uiState.biomarkers,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
+                    if (uiState.currentUser == null) {
+                        // 2A. Unauthenticated: Dynamic Discovery + Real Google Sign-In
+                        SignInView(
+                            isBootstrapping = uiState.isBootstrapping,
+                            isBootstrapped = uiState.isBootstrapped,
+                            discoveredBaseUrl = uiState.discoveredBaseUrl,
+                            discoveredEndpointCount = uiState.discoveredEndpointCount,
+                            isAuthLoading = uiState.isAuthLoading,
+                            onRetryDiscovery = { viewModel.bootstrapSession() },
+                            onSignIn = { email, name, allergies ->
+                                viewModel.signInWithGoogle(email, name, allergies)
+                            }
+                        )
                     } else {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            HouseholdView(
-                                group = uiState.group,
-                                activeMemberIds = uiState.activeMemberIds,
-                                onToggleMember = { id -> viewModel.toggleMember(id) },
-                                currentUserId = uiState.currentUser?.userId
-                            )
-                            BiomarkersView(
-                                panel = uiState.biomarkers
-                            )
+                        // Discovery indicator inside authenticated dashboard
+                        Text(
+                            text = "📡 Active Session Endpoint Discovery: ${uiState.discoveredEndpointCount} endpoints via ${uiState.discoveredBaseUrl}",
+                            fontSize = 11.sp,
+                            color = CyanAccent.copy(alpha = 0.85f)
+                        )
+
+                        // 2B. Hero Action: 1-Click "What Should I Eat Next?"
+                        HeroNextMealView(
+                            selectedMealSlot = uiState.selectedMealSlot,
+                            onSelectMealSlot = { slot -> viewModel.setMealSlot(slot) },
+                            onGetNextMeal = { viewModel.getNextMeal() },
+                            isLoading = uiState.isLoadingMeal,
+                            subjectToken = uiState.currentUser?.subjectToken
+                        )
+
+                        // 3. Recommended Meal Result (when available)
+                        uiState.currentMeal?.let { meal ->
+                            MealResultView(meal = meal)
+                        }
+
+                        // 4. Responsive Section: Household Dynamic Members & Blood Panel Vault
+                        if (isWideScreen) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                HouseholdView(
+                                    group = uiState.group,
+                                    activeMemberIds = uiState.activeMemberIds,
+                                    onToggleMember = { id -> viewModel.toggleMember(id) },
+                                    onCreateGroup = { name -> viewModel.createGroup(name) },
+                                    onJoinGroup = { code -> viewModel.joinGroup(code) },
+                                    onLeaveGroup = { viewModel.leaveGroup() },
+                                    isManagingGroup = uiState.isManagingGroup,
+                                    currentUserId = uiState.currentUser?.userId,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                BiomarkersView(
+                                    panel = uiState.biomarkers,
+                                    isSavingBiomarker = uiState.isSavingBiomarker,
+                                    onSaveBiomarker = { preset, value ->
+                                        viewModel.recordQuickBiomarker(preset, value)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                HouseholdView(
+                                    group = uiState.group,
+                                    activeMemberIds = uiState.activeMemberIds,
+                                    onToggleMember = { id -> viewModel.toggleMember(id) },
+                                    onCreateGroup = { name -> viewModel.createGroup(name) },
+                                    onJoinGroup = { code -> viewModel.joinGroup(code) },
+                                    onLeaveGroup = { viewModel.leaveGroup() },
+                                    isManagingGroup = uiState.isManagingGroup,
+                                    currentUserId = uiState.currentUser?.userId
+                                )
+                                BiomarkersView(
+                                    panel = uiState.biomarkers,
+                                    isSavingBiomarker = uiState.isSavingBiomarker,
+                                    onSaveBiomarker = { preset, value ->
+                                        viewModel.recordQuickBiomarker(preset, value)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
