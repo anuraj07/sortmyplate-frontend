@@ -1,0 +1,22 @@
+# Gradle & Build outputs
+.gradle/
+build/
+**/build/
+local.properties
+*.hprof
+captures/
+
+# Kotlin & Android Studio
+.idea/
+*.iml
+.kotlin/
+
+# iOS & Xcode
+iosApp/Pods/
+iosApp/*.xcworkspace/xcuserdata/
+iosApp/*.xcodeproj/xcuserdata/
+iosApp/*.xcodeproj/project.xcworkspace/xcuserdata/
+DerivedData/
+
+# OS files
+.DS_Store
