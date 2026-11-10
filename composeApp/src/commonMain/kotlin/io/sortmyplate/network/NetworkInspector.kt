@@ -229,6 +229,7 @@ val NetworkInspectorPlugin = createClientPlugin("SortMyPlateNetworkInspector") {
 }
 
 fun HttpClientConfig<*>.installNetworkInspector() {
+    if (!isDebugBuild()) return
     install(NetworkInspectorPlugin)
     install(ResponseObserver) {
         onResponse { response: HttpResponse ->

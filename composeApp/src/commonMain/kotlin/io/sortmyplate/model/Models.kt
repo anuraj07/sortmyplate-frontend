@@ -9,6 +9,8 @@ data class BootstrapResponse(
     val version: String = "1.0.0",
     @SerialName("base_url") val baseUrl: String = "",
     @SerialName("google_client_id") val googleClientId: String? = null,
+    @SerialName("google_oauth_enabled") val googleOauthEnabled: Boolean = false,
+    @SerialName("google_gis_enabled") val googleGisEnabled: Boolean = false,
     val endpoints: Map<String, String> = emptyMap()
 )
 
@@ -40,10 +42,48 @@ data class AuthResponse(
 @Serializable
 data class GoogleAuthRequest(
     @SerialName("id_token") val idToken: String? = null,
-    val email: String,
-    val name: String,
-    val allergies: List<String> = emptyList(),
-    @SerialName("diet_preference") val dietPreference: String = "omnivore"
+    @SerialName("google_access_token") val googleAccessToken: String? = null,
+    val email: String? = null,
+    val name: String? = null,
+    val picture: String? = null,
+    val allergies: List<String>? = null,
+    @SerialName("diet_preference") val dietPreference: String? = null
+)
+
+@Serializable
+data class OAuthLoginUrlResponse(
+    @SerialName("auth_url") val authUrl: String = "",
+    val state: String = "",
+    @SerialName("callback_uri") val callbackUri: String = ""
+)
+
+@Serializable
+data class OAuthExchangeRequest(
+    val state: String,
+    @SerialName("exchange_code") val exchangeCode: String? = null
+)
+
+@Serializable
+data class OAuthSessionPollResponse(
+    val status: String = "pending",
+    val auth: AuthResponse? = null,
+    val error: String? = null
+)
+
+@Serializable
+data class ProfileUpdateRequest(
+    @SerialName("full_name") val fullName: String? = null,
+    val allergies: List<String>? = null,
+    @SerialName("diet_preference") val dietPreference: String? = null
+)
+
+@Serializable
+data class EncryptionStatusResponse(
+    val status: String = "ACTIVE",
+    val cipher: String = "AES-256-GCM",
+    @SerialName("subject_token") val subjectToken: String = "",
+    @SerialName("identity_decoupled") val identityDecoupled: Boolean = true,
+    @SerialName("zero_trust_zone") val zeroTrustZone: String = "Zone B"
 )
 
 @Serializable

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Cream-white top/left plate arc (within 66dp safe zone) -->
+    <path
+        android:pathData="M69.6,35.1 A24.5,24.5 0 0,0 32.5,65.8"
+        android:strokeWidth="4.6"
+        android:strokeColor="#FAFBF7"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <!-- Emerald right/bottom plate arc -->
+    <path
+        android:pathData="M40.9,74.7 A24.5,24.5 0 0,0 75.5,65.8"
+        android:strokeWidth="4.6"
+        android:strokeColor="#49C983"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <!-- Lime accent plate arc -->
+    <path
+        android:pathData="M78.5,55.5 A24.5,24.5 0 0,0 76.5,44.3"
+        android:strokeWidth="4.6"
+        android:strokeColor="#A6EB82"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <!-- Luminous botanical leaf -->
+    <path android:pathData="M42.8,65.8 C42.1,48.8 52.0,40.2 66.0,41.1 C66.5,56.8 56.4,66.6 42.8,65.8 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="66"
+                android:startY="41"
+                android:endX="43"
+                android:endY="66">
+                <item android:color="#FFA6F2C2" android:offset="0.0" />
+                <item android:color="#FF38B970" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Crisp leaf vein -->
+    <path
+        android:pathData="M41.2,67.5 Q49.8,56.8 59.8,47.2"
+        android:strokeWidth="2.0"
+        android:strokeColor="#13251B"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

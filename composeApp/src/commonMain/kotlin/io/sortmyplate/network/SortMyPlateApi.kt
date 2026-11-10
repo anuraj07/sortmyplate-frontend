@@ -4,7 +4,9 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -13,19 +15,10 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
-import io.sortmyplate.model.ApiErrorDetail
-import io.sortmyplate.model.AuthResponse
-import io.sortmyplate.model.BiomarkerPanelRecord
-import io.sortmyplate.model.BiomarkerUploadRequest
-import io.sortmyplate.model.BootstrapResponse
-import io.sortmyplate.model.GoogleAuthRequest
-import io.sortmyplate.model.GroupCreateRequest
-import io.sortmyplate.model.GroupJoinRequest
-import io.sortmyplate.model.GroupResponse
-import io.sortmyplate.model.LlmStatusResponse
-import io.sortmyplate.model.NextMealRequest
-import io.sortmyplate.model.NextMealResponse
+import io.sortmyplate.model.*
 import kotlinx.serialization.json.Json
+
+class OAuthNotConfiguredException(message: String) : IllegalStateException(message)
 
 class SortMyPlateApi(
     private val serverOrigin: String = getServerOrigin()
@@ -46,12 +39,15 @@ class SortMyPlateApi(
     // Session-scoped discovered endpoint map populated from GET /bootstrap
     private var sessionBaseUrl: String? = null
     private var sessionEndpoints: Map<String, String> = emptyMap()
+    private var sessionGoogleClientId: String? = null
 
     fun isBootstrapped(): Boolean = sessionBaseUrl != null && sessionEndpoints.isNotEmpty()
 
     fun getDiscoveredBaseUrl(): String = sessionBaseUrl ?: serverOrigin
 
     fun getDiscoveredEndpointCount(): Int = sessionEndpoints.size
+
+    fun getDiscoveredGoogleClientId(): String? = sessionGoogleClientId
 
     private fun resolveEndpoint(key: String, vararg replacements: Pair<String, String>): String {
         val base = sessionBaseUrl
@@ -95,6 +91,7 @@ class SortMyPlateApi(
 
             sessionBaseUrl = resolvedBase
             sessionEndpoints = payload.endpoints
+            sessionGoogleClientId = payload.googleClientId
             payload.copy(baseUrl = resolvedBase)
         }
     }
@@ -109,11 +106,62 @@ class SortMyPlateApi(
         }
     }
 
+    suspend fun getGoogleOAuthLoginUrl(
+        state: String,
+        platform: String,
+        redirectTo: String? = null
+    ): Result<OAuthLoginUrlResponse> {
+        return runCatching {
+            val response = client.get(resolveEndpoint("auth_google_login")) {
+                parameter("state", state)
+                parameter("platform", platform)
+                if (!redirectTo.isNullOrBlank()) {
+                    parameter("redirect_to", redirectTo)
+                }
+                parameter("response_mode", "json")
+            }
+            if (response.status == HttpStatusCode.NotImplemented) {
+                throw OAuthNotConfiguredException(extractError(response))
+            }
+            if (!response.status.isSuccess()) {
+                throw IllegalStateException(extractError(response))
+            }
+            response.body()
+        }
+    }
+
+    suspend fun exchangeGoogleOAuth(
+        state: String,
+        exchangeCode: String?
+    ): Result<AuthResponse> {
+        return runCatching {
+            val response = client.post(resolveEndpoint("auth_google_exchange")) {
+                contentType(ContentType.Application.Json)
+                setBody(OAuthExchangeRequest(state = state, exchangeCode = exchangeCode))
+            }
+            if (!response.status.isSuccess()) {
+                throw IllegalStateException(extractError(response))
+            }
+            response.body()
+        }
+    }
+
+    suspend fun pollGoogleOAuthSession(state: String): Result<OAuthSessionPollResponse> {
+        return runCatching {
+            val response = client.get(resolveEndpoint("auth_google_session", "oauth_state" to state))
+            if (!response.status.isSuccess()) {
+                throw IllegalStateException(extractError(response))
+            }
+            response.body()
+        }
+    }
+
     suspend fun signInWithGoogle(
-        email: String,
-        name: String,
-        allergies: List<String> = emptyList(),
-        idToken: String? = null
+        email: String? = null,
+        name: String? = null,
+        allergies: List<String>? = null,
+        idToken: String? = null,
+        googleAccessToken: String? = null
     ): Result<AuthResponse> {
         return runCatching {
             val response = client.post(resolveEndpoint("auth_google")) {
@@ -121,9 +169,33 @@ class SortMyPlateApi(
                 setBody(
                     GoogleAuthRequest(
                         idToken = idToken,
-                        email = email.trim(),
-                        name = name.trim(),
+                        googleAccessToken = googleAccessToken,
+                        email = email?.trim(),
+                        name = name?.trim(),
                         allergies = allergies
+                    )
+                )
+            }
+            if (!response.status.isSuccess()) {
+                throw IllegalStateException(extractError(response))
+            }
+            response.body()
+        }
+    }
+
+    suspend fun updateProfile(
+        token: String,
+        allergies: List<String>,
+        dietPreference: String
+    ): Result<AuthResponse> {
+        return runCatching {
+            val response = client.put(resolveEndpoint("auth_profile")) {
+                contentType(ContentType.Application.Json)
+                header("Authorization", "Bearer $token")
+                setBody(
+                    ProfileUpdateRequest(
+                        allergies = allergies,
+                        dietPreference = dietPreference
                     )
                 )
             }

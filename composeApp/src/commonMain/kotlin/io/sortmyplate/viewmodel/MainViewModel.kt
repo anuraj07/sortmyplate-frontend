@@ -2,20 +2,39 @@ package io.sortmyplate.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.sortmyplate.model.AuthResponse
-import io.sortmyplate.model.BiomarkerObservation
-import io.sortmyplate.model.BiomarkerPanelRecord
-import io.sortmyplate.model.BiomarkerUploadRequest
-import io.sortmyplate.model.GroupResponse
-import io.sortmyplate.model.NextMealResponse
-import io.sortmyplate.model.ReferenceInterval
-import io.sortmyplate.network.SortMyPlateApi
-import io.sortmyplate.network.getServerOrigin
+import io.sortmyplate.model.*
+import io.sortmyplate.network.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+enum class AppSection(val label: String, val icon: String) {
+    TODAY("Today", "🌿"),
+    BLOOD("Blood", "🩸"),
+    INSIGHTS("Insights", "✨"),
+    CIRCLE("Circle", "👥")
+}
+
+data class InsightPoint(
+    val title: String,
+    val body: String
+)
+
+data class InsightPillar(
+    val id: String,
+    val kicker: String,
+    val title: String,
+    val bigValue: String,
+    val statusBadge: String,
+    val wide: Boolean,
+    val paletteKey: String,
+    val summary: String,
+    val points: List<InsightPoint>
+)
 
 data class BiomarkerPreset(
     val code: String,
@@ -32,7 +51,9 @@ val SUPPORTED_BIOMARKER_PRESETS = listOf(
     BiomarkerPreset("LDL_C", "2089-1", "LDL Cholesterol", "Lipid Panel", "mg/dL", 0.0, 100.0),
     BiomarkerPreset("HBA1C", "4548-4", "Hemoglobin A1c", "Glycemic Control", "%", 4.0, 5.6),
     BiomarkerPreset("FERRITIN", "24331-1", "Serum Ferritin", "Iron Status", "ng/mL", 30.0, 200.0),
-    BiomarkerPreset("HS_CRP", "30934-4", "High-Sensitivity CRP", "Inflammation", "mg/L", 0.0, 1.0)
+    BiomarkerPreset("HS_CRP", "30934-4", "High-Sensitivity CRP", "Inflammation", "mg/L", 0.0, 1.0),
+    BiomarkerPreset("VITAMIN_D3", "62292-8", "Vitamin D3 (25-OH)", "Micronutrients", "ng/mL", 30.0, 80.0),
+    BiomarkerPreset("FASTING_GLUCOSE", "1558-6", "Fasting Glucose", "Glycemic Control", "mg/dL", 70.0, 99.0)
 )
 
 data class UiState(
@@ -40,15 +61,26 @@ data class UiState(
     val isBootstrapped: Boolean = false,
     val discoveredBaseUrl: String = getServerOrigin(),
     val discoveredEndpointCount: Int = 0,
-    val llmStatusLabel: String = "Discovering API...",
+    val googleOauthEnabled: Boolean = false,
+    val googleClientId: String? = null,
+    val llmStatusLabel: String = "Connecting...",
     val currentUser: AuthResponse? = null,
+    val isOnboardingVisible: Boolean = false,
+    val completedOnboardingUserIds: Set<String> = emptySet(),
+    val activeSection: AppSection = AppSection.TODAY,
+    val onboardingStep: Int = 0,
+    val showGuideModal: Boolean = false,
+    val selectedInsight: InsightPillar? = null,
     val biomarkers: BiomarkerPanelRecord? = null,
     val group: GroupResponse? = null,
     val activeMemberIds: Set<String> = emptySet(),
     val selectedMealSlot: String = "DINNER",
     val isAuthLoading: Boolean = false,
+    val isAwaitingGoogleBrowser: Boolean = false,
+    val oauthSetupHint: String? = null,
     val isSavingBiomarker: Boolean = false,
     val isManagingGroup: Boolean = false,
+    val isUpdatingProfile: Boolean = false,
     val isLoadingMeal: Boolean = false,
     val currentMeal: NextMealResponse? = null,
     val statusMessage: String? = null,
@@ -62,8 +94,22 @@ class MainViewModel(
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    private var oauthPollJob: Job? = null
+    private var activeOAuthState: String? = null
+
     init {
         bootstrapSession()
+        observeDeepLinkCallbacks()
+    }
+
+    private fun observeDeepLinkCallbacks() {
+        viewModelScope.launch {
+            OAuthDeepLinkBus.pendingCallback.collect { callback ->
+                if (callback == null) return@collect
+                OAuthDeepLinkBus.consume()
+                handleOAuthCallbackResult(callback)
+            }
+        }
     }
 
     fun bootstrapSession() {
@@ -77,6 +123,8 @@ class MainViewModel(
                             isBootstrapped = true,
                             discoveredBaseUrl = discovery.baseUrl,
                             discoveredEndpointCount = discovery.endpoints.size,
+                            googleOauthEnabled = discovery.googleOauthEnabled,
+                            googleClientId = discovery.googleClientId,
                             errorMessage = null
                         )
                     }
@@ -104,13 +152,281 @@ class MainViewModel(
                         "deepseek" -> "DeepSeek-V3 (${llm.status})"
                         "claude" -> "Claude 3.5 (${llm.status})"
                         "openai" -> "GPT-4o (${llm.status})"
-                        else -> "Clinical AI (${llm.latencyMs?.toInt() ?: 1}ms)"
+                        else -> "Clinical Engine (${llm.latencyMs?.toInt() ?: 1}ms)"
                     }
                     _uiState.update { it.copy(llmStatusLabel = label) }
                 },
                 onFailure = {
-                    _uiState.update { it.copy(llmStatusLabel = "Clinical AI Ready") }
+                    _uiState.update { it.copy(llmStatusLabel = "Clinical Engine") }
                 }
+            )
+        }
+    }
+
+    fun selectSection(section: AppSection) {
+        _uiState.update { it.copy(activeSection = section, statusMessage = null, errorMessage = null) }
+    }
+
+    fun setOnboardingStep(step: Int) {
+        _uiState.update { it.copy(onboardingStep = step.coerceIn(0, 2)) }
+    }
+
+    fun completeOnboarding() {
+        _uiState.update { state ->
+            val updatedCompleted = state.currentUser?.userId?.let { state.completedOnboardingUserIds + it }
+                ?: state.completedOnboardingUserIds
+            state.copy(
+                isOnboardingVisible = false,
+                onboardingStep = 0,
+                completedOnboardingUserIds = updatedCompleted
+            )
+        }
+    }
+
+    fun replayOnboarding() {
+        _uiState.update {
+            it.copy(
+                isOnboardingVisible = true,
+                onboardingStep = 0,
+                statusMessage = null,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun setShowGuideModal(visible: Boolean) {
+        _uiState.update { it.copy(showGuideModal = visible) }
+    }
+
+    fun openInsightDetail(pillar: InsightPillar?) {
+        _uiState.update { it.copy(selectedInsight = pillar) }
+    }
+
+    fun startContinueWithGoogle() {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isAuthLoading = true,
+                    oauthSetupHint = null,
+                    errorMessage = null,
+                    statusMessage = null
+                )
+            }
+
+            if (!api.isBootstrapped()) {
+                val bootRes = api.bootstrap()
+                if (bootRes.isFailure) {
+                    _uiState.update {
+                        it.copy(
+                            isAuthLoading = false,
+                            errorMessage = "Endpoint discovery failed: ${bootRes.exceptionOrNull()?.message}"
+                        )
+                    }
+                    return@launch
+                }
+                val boot = bootRes.getOrThrow()
+                _uiState.update {
+                    it.copy(
+                        isBootstrapped = true,
+                        discoveredBaseUrl = boot.baseUrl,
+                        discoveredEndpointCount = boot.endpoints.size,
+                        googleOauthEnabled = boot.googleOauthEnabled,
+                        googleClientId = boot.googleClientId
+                    )
+                }
+            }
+
+            val clientId = api.getDiscoveredGoogleClientId() ?: _uiState.value.googleClientId
+            val outcome = signInInAppWithGoogle(
+                googleClientId = clientId,
+                requestOAuthUrl = { state, platform, redirectTo ->
+                    activeOAuthState = state
+                    val loginResult = api.getGoogleOAuthLoginUrl(
+                        state = state,
+                        platform = platform,
+                        redirectTo = redirectTo
+                    )
+                    loginResult.fold(
+                        onSuccess = { meta ->
+                            OAuthBrowserStart(state = meta.state, authUrl = meta.authUrl)
+                        },
+                        onFailure = { err ->
+                            if (err is OAuthNotConfiguredException) {
+                                val base = _uiState.value.discoveredBaseUrl
+                                OAuthBrowserStart(
+                                    state = state,
+                                    unconfiguredMessage = "Server OAuth needs GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET (Redirect URI: $base/v1/auth/google/callback). Use the fallback sign-in drawer below until configured."
+                                )
+                            } else {
+                                OAuthBrowserStart(
+                                    state = state,
+                                    errorMessage = "Google Sign-In failed: ${err.message}"
+                                )
+                            }
+                        }
+                    )
+                }
+            )
+
+            when (outcome) {
+                is InAppGoogleSignInOutcome.IdToken -> {
+                    api.signInWithGoogle(idToken = outcome.idToken).fold(
+                        onSuccess = { auth -> completeAuthenticatedSession(auth) },
+                        onFailure = { err ->
+                            _uiState.update {
+                                it.copy(
+                                    isAuthLoading = false,
+                                    isAwaitingGoogleBrowser = false,
+                                    errorMessage = "Google ID verification failed: ${err.message}"
+                                )
+                            }
+                        }
+                    )
+                }
+
+                is InAppGoogleSignInOutcome.GoogleAccessToken -> {
+                    api.signInWithGoogle(googleAccessToken = outcome.accessToken).fold(
+                        onSuccess = { auth -> completeAuthenticatedSession(auth) },
+                        onFailure = { err ->
+                            _uiState.update {
+                                it.copy(
+                                    isAuthLoading = false,
+                                    isAwaitingGoogleBrowser = false,
+                                    errorMessage = "Google account sync failed: ${err.message}"
+                                )
+                            }
+                        }
+                    )
+                }
+
+                is InAppGoogleSignInOutcome.DeepLinkCallback -> {
+                    api.exchangeGoogleOAuth(outcome.state, outcome.exchangeCode).fold(
+                        onSuccess = { auth -> completeAuthenticatedSession(auth) },
+                        onFailure = { err ->
+                            _uiState.update {
+                                it.copy(
+                                    isAuthLoading = false,
+                                    isAwaitingGoogleBrowser = false,
+                                    errorMessage = "Google session exchange failed: ${err.message}"
+                                )
+                            }
+                        }
+                    )
+                }
+
+                is InAppGoogleSignInOutcome.AwaitingSessionPoll -> {
+                    activeOAuthState = outcome.state
+                    _uiState.update {
+                        it.copy(
+                            isAuthLoading = false,
+                            isAwaitingGoogleBrowser = true,
+                            statusMessage = outcome.message
+                        )
+                    }
+                    startPollingGoogleSession(outcome.state)
+                }
+
+                InAppGoogleSignInOutcome.Cancelled -> {
+                    _uiState.update {
+                        it.copy(
+                            isAuthLoading = false,
+                            isAwaitingGoogleBrowser = false,
+                            statusMessage = null
+                        )
+                    }
+                }
+
+                is InAppGoogleSignInOutcome.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isAuthLoading = false,
+                            isAwaitingGoogleBrowser = false,
+                            oauthSetupHint = if (outcome.isOAuthUnconfigured) outcome.message else null,
+                            errorMessage = if (outcome.isOAuthUnconfigured) null else outcome.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun startPollingGoogleSession(state: String) {
+        oauthPollJob?.cancel()
+        oauthPollJob = viewModelScope.launch {
+            repeat(90) {
+                delay(1500)
+                if (!_uiState.value.isAwaitingGoogleBrowser) return@launch
+
+                api.pollGoogleOAuthSession(state).onSuccess { poll ->
+                    when (poll.status) {
+                        "completed" -> {
+                            poll.auth?.let { auth ->
+                                completeAuthenticatedSession(auth)
+                                return@launch
+                            }
+                        }
+                        "error" -> {
+                            _uiState.update {
+                                it.copy(
+                                    isAwaitingGoogleBrowser = false,
+                                    errorMessage = poll.error ?: "Google authorization failed"
+                                )
+                            }
+                            return@launch
+                        }
+                        "consumed" -> {
+                            _uiState.update { it.copy(isAwaitingGoogleBrowser = false) }
+                            return@launch
+                        }
+                    }
+                }
+            }
+            _uiState.update {
+                it.copy(
+                    isAwaitingGoogleBrowser = false,
+                    errorMessage = "Google sign-in timed out. Tap Continue with Google to retry."
+                )
+            }
+        }
+    }
+
+    private fun handleOAuthCallbackResult(callback: OAuthDeepLinkResult) {
+        oauthPollJob?.cancel()
+        if (!callback.error.isNullOrBlank()) {
+            _uiState.update {
+                it.copy(
+                    isAwaitingGoogleBrowser = false,
+                    isAuthLoading = false,
+                    errorMessage = "Google Sign-In cancelled: ${callback.error}"
+                )
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isAuthLoading = true, isAwaitingGoogleBrowser = false) }
+            api.exchangeGoogleOAuth(callback.state, callback.exchangeCode).fold(
+                onSuccess = { auth -> completeAuthenticatedSession(auth) },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isAuthLoading = false,
+                            errorMessage = "OAuth exchange failed: ${error.message}"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun cancelGoogleSignIn() {
+        oauthPollJob?.cancel()
+        activeOAuthState = null
+        _uiState.update {
+            it.copy(
+                isAwaitingGoogleBrowser = false,
+                isAuthLoading = false,
+                statusMessage = null
             )
         }
     }
@@ -143,33 +459,15 @@ class MainViewModel(
                     }
                     return@launch
                 }
-                val boot = bootRes.getOrThrow()
-                _uiState.update {
-                    it.copy(
-                        isBootstrapped = true,
-                        discoveredBaseUrl = boot.baseUrl,
-                        discoveredEndpointCount = boot.endpoints.size
-                    )
-                }
             }
 
             api.signInWithGoogle(email = cleanEmail, name = cleanName, allergies = allergies).fold(
-                onSuccess = { auth ->
-                    _uiState.update {
-                        it.copy(
-                            currentUser = auth,
-                            isAuthLoading = false,
-                            errorMessage = null
-                        )
-                    }
-                    loadBiomarkers(auth.accessToken)
-                    loadGroups(auth.accessToken)
-                },
+                onSuccess = { auth -> completeAuthenticatedSession(auth) },
                 onFailure = { error ->
                     _uiState.update {
                         it.copy(
                             isAuthLoading = false,
-                            errorMessage = "Google Sign-In failed: ${error.message}"
+                            errorMessage = "Sign-In failed: ${error.message}"
                         )
                     }
                 }
@@ -177,16 +475,73 @@ class MainViewModel(
         }
     }
 
+    private fun completeAuthenticatedSession(auth: AuthResponse) {
+        oauthPollJob?.cancel()
+        activeOAuthState = null
+        _uiState.update {
+            it.copy(
+                currentUser = auth,
+                isOnboardingVisible = !it.completedOnboardingUserIds.contains(auth.userId),
+                onboardingStep = 0,
+                activeSection = AppSection.TODAY,
+                isAuthLoading = false,
+                isAwaitingGoogleBrowser = false,
+                oauthSetupHint = null,
+                errorMessage = null,
+                statusMessage = null
+            )
+        }
+        loadBiomarkers(auth.accessToken)
+        loadGroups(auth.accessToken)
+    }
+
     fun signOut() {
+        oauthPollJob?.cancel()
+        activeOAuthState = null
         _uiState.update { state ->
             state.copy(
                 currentUser = null,
+                isOnboardingVisible = false,
+                onboardingStep = 0,
+                activeSection = AppSection.TODAY,
                 biomarkers = null,
                 group = null,
                 activeMemberIds = emptySet(),
                 currentMeal = null,
+                selectedInsight = null,
+                isAwaitingGoogleBrowser = false,
                 statusMessage = null,
                 errorMessage = null
+            )
+        }
+    }
+
+    fun updateProfileSafeguards(allergiesRaw: String, dietPreference: String) {
+        val token = _uiState.value.currentUser?.accessToken ?: return
+        val allergies = allergiesRaw.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdatingProfile = true, errorMessage = null, statusMessage = null) }
+            api.updateProfile(token, allergies, dietPreference).fold(
+                onSuccess = { updated ->
+                    val mergedUser = updated.copy(accessToken = token)
+                    _uiState.update {
+                        it.copy(
+                            currentUser = mergedUser,
+                            isUpdatingProfile = false,
+                            statusMessage = "Updated dietary safeguards & allergy exclusions."
+                        )
+                    }
+                    loadGroups(token)
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isUpdatingProfile = false,
+                            errorMessage = "Profile update failed: ${error.message}"
+                        )
+                    }
+                }
             )
         }
     }
@@ -233,7 +588,7 @@ class MainViewModel(
                         it.copy(
                             biomarkers = panel,
                             isSavingBiomarker = false,
-                            statusMessage = "Encrypted ${preset.displayName} into PHI Vault."
+                            statusMessage = "Encrypted ${preset.displayName} into Zone B PHI Vault."
                         )
                     }
                 },

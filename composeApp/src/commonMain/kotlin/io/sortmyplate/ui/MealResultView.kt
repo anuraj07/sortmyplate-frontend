@@ -1,6 +1,5 @@
 package io.sortmyplate.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -20,48 +19,53 @@ fun MealResultView(
     meal: NextMealResponse,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = CardDark),
-        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(CyanAccent.copy(alpha = 0.4f)))
+        shape = RoundedCornerShape(28.dp),
+        color = CardWhite,
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(CardBorder)
+        )
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
-            // Allergen Safeguard Banner
             if (meal.allergensStrictlyAvoided.isNotEmpty()) {
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = EmeraldGreen.copy(alpha = 0.12f),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(EmeraldGreen.copy(alpha = 0.3f))),
+                    shape = RoundedCornerShape(14.dp),
+                    color = EmeraldPrimary.copy(alpha = 0.1f),
+                    border = CardDefaults.outlinedCardBorder().copy(
+                        brush = androidx.compose.ui.graphics.SolidColor(EmeraldPrimary.copy(alpha = 0.3f))
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "🛡️ ", fontSize = 14.sp)
-                        Text(
-                            text = "Safety Safeguard: Strictly avoided allergens: ${meal.allergensStrictlyAvoided.joinToString(", ")}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = EmeraldGreen
-                        )
-                    }
+                    Text(
+                        text = "🛡️ Allergen Guardrail: Strictly avoided ${meal.allergensStrictlyAvoided.joinToString(", ")}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ForestHeroMid,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                    )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Meal Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
+                    Text(
+                        text = "PERSONALIZED CLINICAL RECOMMENDATION",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldPrimary,
+                        letterSpacing = 0.8.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = meal.title,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.ExtraBold,
                         color = TextPrimary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -74,21 +78,20 @@ fun MealResultView(
 
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = Color(0xFF1E293B)
+                    color = SageSurface
                 ) {
                     Text(
-                        text = "⏱️ ${meal.prepTimeMinutes} mins",
+                        text = "⏱️ ${meal.prepTimeMinutes}m",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = CyanAccent,
+                        color = ForestHeroDeep,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Macro Grid (Calories, Protein, Fiber, Glycemic Load)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -98,17 +101,16 @@ fun MealResultView(
                 val fiber = meal.macrosPerServing["fiber_g"] ?: 0.0
                 val gl = meal.macrosPerServing["glycemic_load"] ?: 0.0
 
-                MacroBox(value = "$calories kcal", label = "Calories", modifier = Modifier.weight(1f))
+                MacroBox(value = "$calories", label = "kcal", modifier = Modifier.weight(1f))
                 MacroBox(value = "${protein}g", label = "Protein", modifier = Modifier.weight(1f))
                 MacroBox(value = "${fiber}g", label = "Fiber", modifier = Modifier.weight(1f))
-                MacroBox(value = "$gl", label = "Glycemic Load", modifier = Modifier.weight(1f))
+                MacroBox(value = "$gl", label = "Glycemic", modifier = Modifier.weight(1f))
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Household Consensus
             Text(
-                text = "🤝 Household Consensus Summary",
+                text = "Household Consensus",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary
@@ -118,14 +120,13 @@ fun MealResultView(
                 text = meal.overallConsensusReasoning,
                 fontSize = 13.sp,
                 color = TextSecondary,
-                lineHeight = 18.sp
+                lineHeight = 19.sp
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Ingredients
             Text(
-                text = "🥣 Shared Base Ingredients",
+                text = "Shared Base Ingredients",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary
@@ -134,22 +135,20 @@ fun MealResultView(
             meal.sharedBaseIngredients.forEach { ing ->
                 Text(
                     text = "• ${ing.name} — ${ing.amount} ${ing.unit}",
-                    fontSize = 12.sp,
+                    fontSize = 12.5.sp,
                     color = TextSecondary
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Clinical Reasoning Cards
             Text(
-                text = "🔬 Individual Clinical Reasoning & Mechanisms",
+                text = "Individual Clinical Mechanisms",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = CyanAccent
+                color = ForestHeroMid
             )
             Spacer(modifier = Modifier.height(8.dp))
-
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 meal.memberCustomizations.forEach { rationale ->
                     ClinicalRationaleCard(rationale)
@@ -163,23 +162,25 @@ fun MealResultView(
 fun MacroBox(value: String, label: String, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(10.dp),
-        color = Color(0xFF0F172A),
-        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(CardBorder))
+        shape = RoundedCornerShape(14.dp),
+        color = CreamSurface,
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(CardBorder)
+        )
     ) {
         Column(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = value,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = CyanAccent
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = ForestHeroDeep
             )
             Text(
                 text = label,
-                fontSize = 10.sp,
+                fontSize = 10.5.sp,
                 color = TextMuted
             )
         }
@@ -190,9 +191,11 @@ fun MacroBox(value: String, label: String, modifier: Modifier = Modifier) {
 fun ClinicalRationaleCard(rationale: IndividualClinicalRationale) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF0F172A),
-        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(CyanAccent.copy(alpha = 0.3f)))
+        shape = RoundedCornerShape(16.dp),
+        color = CreamSurface,
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(CardBorder)
+        )
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
@@ -207,34 +210,34 @@ fun ClinicalRationaleCard(rationale: IndividualClinicalRationale) {
                     color = TextPrimary
                 )
                 Text(
-                    text = "Target: ${rationale.targetedBiomarkers.joinToString(", ")}",
+                    text = rationale.targetedBiomarkers.joinToString(", "),
                     fontSize = 11.sp,
-                    color = EmeraldGreen,
-                    fontWeight = FontWeight.SemiBold
+                    color = EmeraldPrimary,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(5.dp))
 
             Text(
                 text = rationale.mechanism,
                 fontSize = 12.sp,
                 color = TextSecondary,
-                lineHeight = 16.sp
+                lineHeight = 17.sp
             )
 
             if (!rationale.suggestedCustomFinish.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = CyanAccent.copy(alpha = 0.1f)
+                    shape = RoundedCornerShape(50),
+                    color = SageSurface
                 ) {
                     Text(
-                        text = "✨ Custom Finish: ${rationale.suggestedCustomFinish}",
+                        text = "✨ Finish: ${rationale.suggestedCustomFinish}",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = CyanAccent,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        fontWeight = FontWeight.Bold,
+                        color = ForestHeroMid,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
             }

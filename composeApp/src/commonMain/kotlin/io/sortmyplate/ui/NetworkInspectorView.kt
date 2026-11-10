@@ -61,10 +61,10 @@ fun NetworkInspectorDialog(
                 .fillMaxWidth(0.95f)
                 .fillMaxHeight(0.88f)
                 .widthIn(max = 920.dp),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(24.dp),
             color = BgDark,
             border = CardDefaults.outlinedCardBorder().copy(
-                brush = androidx.compose.ui.graphics.SolidColor(CyanAccent.copy(alpha = 0.45f))
+                brush = androidx.compose.ui.graphics.SolidColor(InspectorAccent.copy(alpha = 0.55f))
             )
         ) {
             Column(
@@ -72,7 +72,6 @@ fun NetworkInspectorDialog(
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
-                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -83,12 +82,12 @@ fun NetworkInspectorDialog(
                             text = "📡 KMP Network Inspector",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            color = InspectorTextPrimary
                         )
                         Text(
-                            text = "Live Ktor Traffic • OkHttp (Android Studio) / Darwin (iOS) / Fetch (Wasm)",
+                            text = "Live Ktor Traffic • OkHttp (Android) / Darwin (iOS) / Fetch (Wasm)",
                             fontSize = 11.sp,
-                            color = TextSecondary
+                            color = InspectorTextSecondary
                         )
                     }
 
@@ -102,8 +101,8 @@ fun NetworkInspectorDialog(
                         Button(
                             onClick = onDismiss,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = CardBorder,
-                                contentColor = TextPrimary
+                                containerColor = InspectorBorder,
+                                contentColor = InspectorTextPrimary
                             ),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             shape = RoundedCornerShape(8.dp)
@@ -115,7 +114,6 @@ fun NetworkInspectorDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Filter Tabs + Counts
                 val okCount = transactions.count { it.status == NetworkLogStatus.SUCCESS }
                 val errCount = transactions.count {
                     it.status == NetworkLogStatus.CLIENT_ERROR ||
@@ -147,7 +145,7 @@ fun NetworkInspectorDialog(
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = CardBorder)
+                HorizontalDivider(color = InspectorBorder)
                 Spacer(modifier = Modifier.height(10.dp))
 
                 if (filteredTransactions.isEmpty()) {
@@ -158,7 +156,7 @@ fun NetworkInspectorDialog(
                         Text(
                             text = "No matching HTTP calls recorded in this session yet.",
                             fontSize = 13.sp,
-                            color = TextMuted
+                            color = InspectorTextMuted
                         )
                     }
                 } else {
@@ -204,15 +202,15 @@ private fun InspectorFilterChip(
             )
         },
         colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = CyanAccent,
-            selectedLabelColor = Color(0xFF0F172A),
+            selectedContainerColor = InspectorAccent,
+            selectedLabelColor = ForestHeroDeep,
             containerColor = CardDark,
-            labelColor = TextSecondary
+            labelColor = InspectorTextSecondary
         ),
         border = FilterChipDefaults.filterChipBorder(
             enabled = true,
             selected = selected,
-            borderColor = if (selected) CyanAccent else CardBorder
+            borderColor = if (selected) InspectorAccent else InspectorBorder
         )
     )
 }
@@ -224,8 +222,8 @@ private fun NetworkTransactionCard(
     onToggle: () -> Unit
 ) {
     val statusColor = when (tx.status) {
-        NetworkLogStatus.PENDING -> CyanAccent
-        NetworkLogStatus.SUCCESS -> EmeraldGreen
+        NetworkLogStatus.PENDING -> InspectorAccent
+        NetworkLogStatus.SUCCESS -> EmeraldGlow
         NetworkLogStatus.CLIENT_ERROR -> AmberYellow
         NetworkLogStatus.SERVER_ERROR, NetworkLogStatus.FAILED -> RoseRed
     }
@@ -244,7 +242,7 @@ private fun NetworkTransactionCard(
         colors = CardDefaults.cardColors(containerColor = CardDark),
         border = CardDefaults.outlinedCardBorder().copy(
             brush = androidx.compose.ui.graphics.SolidColor(
-                if (isExpanded) statusColor.copy(alpha = 0.6f) else CardBorder
+                if (isExpanded) statusColor.copy(alpha = 0.65f) else InspectorBorder
             )
         )
     ) {
@@ -261,20 +259,20 @@ private fun NetworkTransactionCard(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = PurpleAccent.copy(alpha = 0.16f)
+                        color = Color(0xFF9F7AEA).copy(alpha = 0.2f)
                     ) {
                         Text(
                             text = tx.method,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = PurpleAccent,
+                            color = Color(0xFFD6BCFA),
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         )
                     }
 
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = statusColor.copy(alpha = 0.16f)
+                        color = statusColor.copy(alpha = 0.18f)
                     ) {
                         Text(
                             text = statusLabel,
@@ -289,7 +287,7 @@ private fun NetworkTransactionCard(
                         text = tx.path,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary,
+                        color = InspectorTextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -302,19 +300,19 @@ private fun NetworkTransactionCard(
                     Text(
                         text = tx.durationMs?.let { "$it ms" } ?: "pending",
                         fontSize = 11.sp,
-                        color = TextMuted
+                        color = InspectorTextMuted
                     )
                     Text(
                         text = if (isExpanded) "▲" else "▼",
                         fontSize = 10.sp,
-                        color = TextSecondary
+                        color = InspectorTextSecondary
                     )
                 }
             }
 
             if (isExpanded) {
                 Spacer(modifier = Modifier.height(10.dp))
-                HorizontalDivider(color = CardBorder)
+                HorizontalDivider(color = InspectorBorder)
                 Spacer(modifier = Modifier.height(10.dp))
 
                 SelectionContainer {
@@ -370,7 +368,7 @@ private fun NetworkTransactionCard(
 private fun InspectorSection(
     title: String,
     content: String,
-    accentColor: Color = CyanAccent
+    accentColor: Color = InspectorAccent
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -384,7 +382,7 @@ private fun InspectorSection(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF0A0F1D), RoundedCornerShape(8.dp))
+                .background(Color(0xFF0B140F), RoundedCornerShape(8.dp))
                 .padding(8.dp)
         ) {
             Text(
@@ -392,7 +390,7 @@ private fun InspectorSection(
                 fontSize = 11.sp,
                 lineHeight = 15.sp,
                 fontFamily = FontFamily.Monospace,
-                color = if (accentColor == RoseRed) RoseRed else TextSecondary
+                color = if (accentColor == RoseRed) RoseRed else InspectorTextSecondary
             )
         }
     }
