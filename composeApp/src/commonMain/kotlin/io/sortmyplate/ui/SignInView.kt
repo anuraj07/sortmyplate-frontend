@@ -80,17 +80,12 @@ val ONBOARDING_SLIDES = listOf(
 
 @Composable
 fun SignInView(
-    isBootstrapping: Boolean,
     isBootstrapped: Boolean,
-    discoveredBaseUrl: String,
-    discoveredEndpointCount: Int,
     isAuthLoading: Boolean,
     isAwaitingGoogleBrowser: Boolean,
     oauthSetupHint: String?,
-    onRetryDiscovery: () -> Unit,
     onContinueWithGoogle: () -> Unit,
     onCancelGoogleBrowser: () -> Unit,
-    onFallbackSignIn: (email: String, name: String, allergiesRaw: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -98,17 +93,12 @@ fun SignInView(
         contentAlignment = Alignment.TopCenter
     ) {
         GoogleAuthCard(
-            isBootstrapping = isBootstrapping,
             isBootstrapped = isBootstrapped,
-            discoveredBaseUrl = discoveredBaseUrl,
-            discoveredEndpointCount = discoveredEndpointCount,
             isAuthLoading = isAuthLoading,
             isAwaitingGoogleBrowser = isAwaitingGoogleBrowser,
             oauthSetupHint = oauthSetupHint,
-            onRetryDiscovery = onRetryDiscovery,
             onContinueWithGoogle = onContinueWithGoogle,
             onCancelGoogleBrowser = onCancelGoogleBrowser,
-            onFallbackSignIn = onFallbackSignIn,
             modifier = Modifier.widthIn(max = 500.dp)
         )
     }
@@ -401,24 +391,14 @@ fun OnboardingDeckCard(
 
 @Composable
 fun GoogleAuthCard(
-    isBootstrapping: Boolean,
     isBootstrapped: Boolean,
-    discoveredBaseUrl: String,
-    discoveredEndpointCount: Int,
     isAuthLoading: Boolean,
     isAwaitingGoogleBrowser: Boolean,
     oauthSetupHint: String?,
-    onRetryDiscovery: () -> Unit,
     onContinueWithGoogle: () -> Unit,
     onCancelGoogleBrowser: () -> Unit,
-    onFallbackSignIn: (email: String, name: String, allergiesRaw: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var showFallback by remember { mutableStateOf(false) }
-    var email by remember { mutableStateOf("") }
-    var fullName by remember { mutableStateOf("") }
-    var allergies by remember { mutableStateOf("") }
-
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
@@ -530,23 +510,6 @@ fun GoogleAuthCard(
                     }
                 }
 
-                // Read-only OpenID reassurance chip
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = CreamSurface,
-                    border = CardDefaults.outlinedCardBorder().copy(
-                        brush = androidx.compose.ui.graphics.SolidColor(CardBorder)
-                    )
-                ) {
-                    Text(
-                        text = "🔒 Read-only OpenID (`name`, `email`, `picture`). Includes a 30-second privacy & daily nutrition tour right after signing in.",
-                        fontSize = 11.5.sp,
-                        color = TextSecondary,
-                        lineHeight = 16.sp,
-                        modifier = Modifier.padding(11.dp)
-                    )
-                }
-
                 if (!oauthSetupHint.isNullOrBlank()) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -562,100 +525,6 @@ fun GoogleAuthCard(
                             lineHeight = 16.sp,
                             modifier = Modifier.padding(12.dp)
                         )
-                    }
-                }
-
-                // Subtle Collapsible Direct Fallback (so main flow remains 100% uncluttered)
-                HorizontalDivider(color = CardBorder)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showFallback = !showFallback }
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Direct email sign-in fallback (when OAuth creds aren't set)",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextMuted
-                    )
-                    Text(
-                        text = if (showFallback) "Hide" else "Open",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = EmeraldPrimary
-                    )
-                }
-
-                if (showFallback || !oauthSetupHint.isNullOrBlank()) {
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text("Google Email") },
-                        placeholder = { Text("you@gmail.com") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = sortMyPlateInputColors()
-                    )
-                    OutlinedTextField(
-                        value = fullName,
-                        onValueChange = { fullName = it },
-                        label = { Text("Full Name") },
-                        placeholder = { Text("Your Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = sortMyPlateInputColors()
-                    )
-                    OutlinedTextField(
-                        value = allergies,
-                        onValueChange = { allergies = it },
-                        label = { Text("Food Allergies (optional)") },
-                        placeholder = { Text("peanuts, shellfish") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = sortMyPlateInputColors()
-                    )
-                    Button(
-                        onClick = { onFallbackSignIn(email, fullName, allergies) },
-                        enabled = isBootstrapped && !isAuthLoading && email.isNotBlank() && fullName.isNotBlank(),
-                        shape = RoundedCornerShape(50),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = SageSurface,
-                            contentColor = ForestHeroDeep
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Sign In with Email", fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                // Quiet Session Discovery Strip
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val dotColor = when {
-                        isBootstrapped -> EmeraldPrimary
-                        isBootstrapping -> AmberYellow
-                        else -> RoseRed
-                    }
-                    Text(
-                        text = when {
-                            isBootstrapped -> "● $discoveredEndpointCount endpoints • $discoveredBaseUrl"
-                            isBootstrapping -> "● Discovering $discoveredBaseUrl..."
-                            else -> "● Discovery offline"
-                        },
-                        fontSize = 10.5.sp,
-                        color = dotColor,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (!isBootstrapping && !isBootstrapped) {
-                        TextButton(onClick = onRetryDiscovery) {
-                            Text("Retry", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EmeraldPrimary)
-                        }
                     }
                 }
             }

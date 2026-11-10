@@ -144,19 +144,12 @@ fun App(viewModel: MainViewModel = remember { MainViewModel() }) {
                         val currentUser = uiState.currentUser
                         if (currentUser == null) {
                             SignInView(
-                                isBootstrapping = uiState.isBootstrapping,
                                 isBootstrapped = uiState.isBootstrapped,
-                                discoveredBaseUrl = uiState.discoveredBaseUrl,
-                                discoveredEndpointCount = uiState.discoveredEndpointCount,
                                 isAuthLoading = uiState.isAuthLoading,
                                 isAwaitingGoogleBrowser = uiState.isAwaitingGoogleBrowser,
                                 oauthSetupHint = uiState.oauthSetupHint,
-                                onRetryDiscovery = { viewModel.bootstrapSession() },
                                 onContinueWithGoogle = { viewModel.startContinueWithGoogle() },
-                                onCancelGoogleBrowser = { viewModel.cancelGoogleSignIn() },
-                                onFallbackSignIn = { email, name, allergies ->
-                                    viewModel.signInWithGoogle(email, name, allergies)
-                                }
+                                onCancelGoogleBrowser = { viewModel.cancelGoogleSignIn() }
                             )
                         } else if (uiState.isOnboardingVisible) {
                             PostLoginOnboardingView(

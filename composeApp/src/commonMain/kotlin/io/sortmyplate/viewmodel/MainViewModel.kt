@@ -149,6 +149,7 @@ class MainViewModel(
             api.getLlmStatus().fold(
                 onSuccess = { llm ->
                     val label = when (llm.provider) {
+                        "gemini" -> "Gemini 2.5 (${llm.status})"
                         "deepseek" -> "DeepSeek-V3 (${llm.status})"
                         "claude" -> "Claude 3.5 (${llm.status})"
                         "openai" -> "GPT-4o (${llm.status})"
@@ -255,7 +256,7 @@ class MainViewModel(
                                 val base = _uiState.value.discoveredBaseUrl
                                 OAuthBrowserStart(
                                     state = state,
-                                    unconfiguredMessage = "Server OAuth needs GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET (Redirect URI: $base/v1/auth/google/callback). Use the fallback sign-in drawer below until configured."
+                                    unconfiguredMessage = "Server OAuth needs GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET (Redirect URI: $base/v1/auth/google/callback)."
                                 )
                             } else {
                                 OAuthBrowserStart(
@@ -427,50 +428,6 @@ class MainViewModel(
                 isAwaitingGoogleBrowser = false,
                 isAuthLoading = false,
                 statusMessage = null
-            )
-        }
-    }
-
-    fun signInWithGoogle(email: String, name: String, allergiesRaw: String) {
-        val cleanEmail = email.trim()
-        val cleanName = name.trim()
-        if (cleanEmail.isBlank() || cleanName.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Please enter both your Google email and full name.") }
-            return
-        }
-
-        val allergies = allergiesRaw
-            .split(",")
-            .map { it.trim().lowercase() }
-            .filter { it.isNotEmpty() }
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isAuthLoading = true, errorMessage = null, statusMessage = null) }
-
-            if (!api.isBootstrapped()) {
-                val bootRes = api.bootstrap()
-                if (bootRes.isFailure) {
-                    _uiState.update {
-                        it.copy(
-                            isAuthLoading = false,
-                            isBootstrapped = false,
-                            errorMessage = "Endpoint discovery failed: ${bootRes.exceptionOrNull()?.message}"
-                        )
-                    }
-                    return@launch
-                }
-            }
-
-            api.signInWithGoogle(email = cleanEmail, name = cleanName, allergies = allergies).fold(
-                onSuccess = { auth -> completeAuthenticatedSession(auth) },
-                onFailure = { error ->
-                    _uiState.update {
-                        it.copy(
-                            isAuthLoading = false,
-                            errorMessage = "Sign-In failed: ${error.message}"
-                        )
-                    }
-                }
             )
         }
     }
