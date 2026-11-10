@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 actual fun getServerOrigin(): String = "https://j6tgemptpq36.ramnaymcloud.com"
 
 // Uses OkHttp explicitly so Android Studio App Inspection -> Network Inspector captures all traffic
-actual fun createPlatformHttpClient(config: HttpClientConfig<*>.() -> Unit): HttpClient {
+actual fun createPlatformHttpClient(configure: HttpClientConfig<*>.() -> Unit): HttpClient {
     return HttpClient(OkHttp) {
         engine {
             config {
@@ -17,6 +17,6 @@ actual fun createPlatformHttpClient(config: HttpClientConfig<*>.() -> Unit): Htt
                 writeTimeout(30, TimeUnit.SECONDS)
             }
         }
-        config()
+        configure()
     }
 }

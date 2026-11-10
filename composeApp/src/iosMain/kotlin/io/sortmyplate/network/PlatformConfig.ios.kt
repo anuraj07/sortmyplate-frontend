@@ -7,13 +7,13 @@ import io.ktor.client.engine.darwin.Darwin
 actual fun getServerOrigin(): String = "https://j6tgemptpq36.ramnaymcloud.com"
 
 // Uses Darwin (NSURLSession) explicitly for iOS native network profiling and ATS integration
-actual fun createPlatformHttpClient(config: HttpClientConfig<*>.() -> Unit): HttpClient {
+actual fun createPlatformHttpClient(configure: HttpClientConfig<*>.() -> Unit): HttpClient {
     return HttpClient(Darwin) {
         engine {
             configureRequest {
                 setAllowsCellularAccess(true)
             }
         }
-        config()
+        configure()
     }
 }

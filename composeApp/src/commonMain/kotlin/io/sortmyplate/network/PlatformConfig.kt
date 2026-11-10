@@ -5,4 +5,4 @@ import io.ktor.client.HttpClientConfig
 
 expect fun getServerOrigin(): String
 
-expect fun createPlatformHttpClient(config: HttpClientConfig<*>.() -> Unit): HttpClient
+expect fun createPlatformHttpClient(configure: HttpClientConfig<*>.() -> Unit): HttpClient
