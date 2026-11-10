@@ -12,6 +12,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.sortmyplate.network.NetworkInspectorStore
+import io.sortmyplate.network.NetworkLogStatus
 import io.sortmyplate.theme.BgDark
 import io.sortmyplate.theme.CyanAccent
 import io.sortmyplate.theme.EmeraldGreen
@@ -23,8 +25,24 @@ import io.sortmyplate.viewmodel.MainViewModel
 @Composable
 fun App(viewModel: MainViewModel = remember { MainViewModel() }) {
     val uiState by viewModel.uiState.collectAsState()
+    val networkTransactions by NetworkInspectorStore.transactions.collectAsState()
+    var showNetworkInspector by remember { mutableStateOf(false) }
+
+    val hasNetworkErrors = networkTransactions.any {
+        it.status == NetworkLogStatus.CLIENT_ERROR ||
+            it.status == NetworkLogStatus.SERVER_ERROR ||
+            it.status == NetworkLogStatus.FAILED
+    }
 
     SortMyPlateTheme {
+        if (showNetworkInspector) {
+            NetworkInspectorDialog(
+                transactions = networkTransactions,
+                onClear = { NetworkInspectorStore.clear() },
+                onDismiss = { showNetworkInspector = false }
+            )
+        }
+
         Scaffold(
             containerColor = BgDark
         ) { paddingValues ->
@@ -43,10 +61,13 @@ fun App(viewModel: MainViewModel = remember { MainViewModel() }) {
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // 1. Header (Brand, LLM connectivity badge, Sign Out)
+                    // 1. Header (Brand, Network Inspector Pill, LLM Status, Sign Out)
                     HeaderView(
                         user = uiState.currentUser,
                         llmStatusLabel = uiState.llmStatusLabel,
+                        networkTxCount = networkTransactions.size,
+                        hasNetworkErrors = hasNetworkErrors,
+                        onOpenNetworkInspector = { showNetworkInspector = true },
                         onSignOut = { viewModel.signOut() }
                     )
 

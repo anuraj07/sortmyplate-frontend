@@ -40,6 +40,21 @@ graph TD
 
 ---
 
+## Network Inspector Tooling
+
+A full cross-platform **Network Inspector** is built into the KMP networking stack:
+
+1. **In-App KMP Network Inspector (`📡 Net (N)` Pill in Header)**:
+   - Implemented in [`NetworkInspector.kt`](composeApp/src/commonMain/kotlin/io/sortmyplate/network/NetworkInspector.kt) via a pure Ktor `createClientPlugin` + `ResponseObserver` (`ktor-client-core`) and rendered via [`NetworkInspectorView.kt`](composeApp/src/commonMain/kotlin/io/sortmyplate/ui/NetworkInspectorView.kt).
+   - Works identically across **Android, iOS, and Web (Wasm-JS)**.
+   - Displays every HTTP transaction (`/bootstrap`, Google Sign-In, biomarkers, groups, `/meals/next`), status code, latency (`ms`), headers (with `Authorization: Bearer` tokens redacted), pretty-printed JSON request/response bodies, and network failures.
+2. **IDE & Native DevTools Support**:
+   - **Android**: [`PlatformConfig.android.kt`](composeApp/src/androidMain/kotlin/io/sortmyplate/network/PlatformConfig.android.kt) explicitly uses the **OkHttp** Ktor engine so **Android Studio -> App Inspection -> Network Inspector** captures all traffic automatically.
+   - **iOS**: [`PlatformConfig.ios.kt`](composeApp/src/iosMain/kotlin/io/sortmyplate/network/PlatformConfig.ios.kt) uses **Darwin (`NSURLSession`)** + console logging (`[KMP-NET]`).
+   - **Web (Wasm-JS)**: [`PlatformConfig.wasmJs.kt`](composeApp/src/wasmJsMain/kotlin/io/sortmyplate/network/PlatformConfig.wasmJs.kt) uses Browser **Fetch (`Js`)** visible in Browser DevTools (`Network` & `Console`).
+
+---
+
 ## How to Run
 
 No local backend setup is required — all platform targets connect directly to **`https://j6tgemptpq36.ramnaymcloud.com`**.

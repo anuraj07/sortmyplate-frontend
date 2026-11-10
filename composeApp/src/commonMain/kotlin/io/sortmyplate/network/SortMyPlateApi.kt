@@ -1,6 +1,5 @@
 package io.sortmyplate.network
 
-import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
@@ -37,10 +36,11 @@ class SortMyPlateApi(
         prettyPrint = true
     }
 
-    val client = HttpClient {
+    val client = createPlatformHttpClient {
         install(ContentNegotiation) {
             json(jsonConfig)
         }
+        installNetworkInspector()
     }
 
     // Session-scoped discovered endpoint map populated from GET /bootstrap
